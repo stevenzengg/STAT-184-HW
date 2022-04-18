@@ -1,0 +1,122 @@
+---
+title: "Regular Expressions 3"
+author: "Steven Zeng"
+date: "April 14"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+### Load Packages and Data
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+data <- read.csv(file = "Data_RegEx3.csv", fileEncoding = "UTF-8", header = T)
+```
+
+### Create New variable year Based on First Four Digits of tourny_id
+
+```{r}
+data <-
+  data %>%
+  mutate(year = str_extract(string = tourney_id, pattern = "\\d{4}"))
+
+head(data)
+tail(data)
+```
+### Separate 'score' variable into 5 columns based on 'score' results
+
+```{r}
+data <-
+  data %>%
+  mutate(score1 = score) %>%
+  separate(score1, c("Set.1", "Set.2", "Set.3", "Set.4", "Set.5", "Error"), sep = "[\\s]") %>%
+  select(!Error)
+
+head(data)
+tail(data)
+```
+
+
+Some data cases had 6 sets played, or at least 6 separate items in 'score'. I included these in my data analysis but got rid of the 6th item.
+
+### Create new variable 'sets.played' by counting non-NAs in Set.1 through Set.5
+
+```{r}
+data <-
+  data %>%
+  mutate(setsplayed = rowSums(!is.na(data))-7)
+head(data)
+tail(data)
+```
+### Create Density Plot of Minutes Played by Number of Sets Played
+```{r}
+data %>%
+  ggplot(aes(x = minutes, fill = factor(setsplayed))) +
+  geom_density(color = NA) +
+  labs(x = 'Minutes Played', y = 'Density', title = 'Density Plots of Minutes Played Per Number of Sets Played') +
+  theme(legend.position = 'top') +
+  scale_fill_discrete(name = "Sets Played")
+```
+
+It looks like as number of sets increase, the minutes played also increase. This shows a positive correlation between number of sets and minutes played.
+
+### Create Boxplot of Winner’s Age by Tournament Name
+
+```{r}
+data <-
+  data %>%
+  mutate(tourney_name = gsub(pattern = "Us Open", replacement = "US Open",tourney_name))
+data %>%
+  ggplot(aes(x = tourney_name, y = winner_age, color = tourney_name)) +
+  geom_boxplot() +
+  labs(title = "Boxplot Age of Winner in Grand Slam Events", y = "Age of Winner", x = "Tournament Name") +
+  scale_color_discrete(name = "Tournament Name")
+
+```
+
+The ages of all winners in all tournaments look relatively similar. I don't believe there is a statistical difference, but more analyzation would be needed to confirm.
+
+### Counts of Matches Won by Top 5 IOC Membership per Tournament
+
+```{r}
+data2 <- data %>%
+  group_by(winner_ioc, tourney_name) %>%
+  summarise(wins = n()) %>%
+  group_by(tourney_name) %>%
+  slice_max(order_by = wins, n = 5)
+
+data2 %>%
+  ggplot(aes(x = winner_ioc, y = wins)) +
+  geom_point() +
+  facet_wrap(~tourney_name, ncol= 1, strip.position = 'right') +
+  labs(title = "Top 5 Olympic Memberships per Tournament", x = "Winners Olympic Membership", y = "Tournaments Won") +
+  theme_bw()
+```
+
+It looks like there are 7 primary winners in all 4 tournaments, and it seems that France wins the most out of the other nations, followed by ESP and GER. ARG, AUS, USA, and ITA follow.
+
+### Counts of Matches Won by Top 2 IOC Membership per Year
+
+```{r}
+data3 <- data %>%
+  group_by(year, winner_ioc) %>%
+  summarise(wins = n()) %>%
+  group_by(year) %>%
+  slice_max(order_by = wins, n = 2)
+
+data3 %>%
+  ggplot() +
+  geom_point(aes(x = year, y = wins, color = winner_ioc)) +
+  labs(title = "Top 2 Olympic Memberships per Year", x = "Year", y = "Tournaments Won") +
+  theme_bw() +
+  theme(aspect.ratio=1) +
+  scale_color_discrete(name = "Olympic Membership")
+```
+
+It looks like as the years increase, the number of tournaments won by the top 2 nations decrease. This can mean many things, but one reason could be because other countries are becoming more competitive and shedding off wins from the top countries. Otherwise, ESP, FRA, and USA stay competitive.
+
+
